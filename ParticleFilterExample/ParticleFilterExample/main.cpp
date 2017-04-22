@@ -12,36 +12,7 @@
 using namespace std;
 using namespace cv;
 
-#define B(image,x,y) ((uchar*)(image->imageData+image->widthStep*(y)))[(x)*3]  //channel B
-#define G(image,x,y) ((uchar*)(image->imageData+image->widthStep*(y)))[(x)*3+1]
-#define R(image,x,y) ((uchar*)(image->imageData+image->widthStep*(y)))[(x)*3+2]
-#define S(image,x,y) ((uchar*)(image->imageData+image->widthStep*(y)))[(x)]
 
-#define Num 10  //帧间间隔
-#define T 40 //Tf
-#define Re 30
-#define ai 0.08 //学习率
-
-#define CONTOUR_MAX_AREA 10000
-#define CONTOUR_MIN_AREA 50
-
-#define R_BIN 8  //红色分量的直方图条数
-#define G_BIN 8  //绿色分量的直方图条数
-#define B_BIN 8  //蓝色分量的直方图条数
-
-#define R_SHIFT 5
-#define G_SHIFT 5
-#define B_SHIFT 5
-
-
-
-//采用Park and Miller方法产生[0,1]之间均匀分布的伪随机数
-#define IA 16807
-#define IM 2147483647
-#define AM (1.0/IM)
-#define IQ 127773
-#define IR 2836
-#define MASK 123459876
 
 typedef struct _SpaceState{  //状态空间变量
 	int xt;  //x坐标位置
@@ -97,89 +68,10 @@ long set_seed(long setValue)
 }
 
 
-//计算一幅图像中某个区域的彩色直方图分布
-/*
-输入参数：
-int x0,y0;   //指定图像区域的中心点
-int Wx,Hy;   //指定图像区域的半宽和半高
-unsigned char *image:  //图像数据，按从左至右，从上至下的顺序扫描
-颜色排列次序：RGB(或者：YUV...)
-int W,H;   //图像的宽和高
-
-输出参数：
-float *ColorHist  //彩色直方图，颜色索引按：i=r*G_BIN*B_BIN+g*B_BIN+b 排列
-int bins   //彩色直方图的条数R_BIN*G*BIN*B_BIN(这里取8*8*8=512)
-*/
-
-void CalcuColorHistogram(int x0, int y0, int Wx, int Hy, unsigned char *image, int W, int H, float *ColorHist, int bins)
-{
-	int x_begin, y_begin;  //指定图像区域的左上角坐标
-	int y_end, x_end;
-	int x, y, i, index;
-	int r, g, b;
-	float k, r2, f;
-	int a2;
-	for (i = 0; i < bins; i++)   //直方图各个值赋0
-		ColorHist[i] = 0.0;
-	if ((x0 < 0) || (x0 >= W) || (y0 < 0) || (y0 >= H) || (Wx <= 0) || (Hy <= 0))
-		return;
-
-	x_begin = x0 - Wx;  //计算实际高度和区域起始点
-	y_begin = y0 - Hy;
-	if (x_begin < 0)
-		x_begin = 0;
-	if (y_begin < 0)
-		y_begin = 0;
-
-	x_end = x0 + Wx;
-	y_end = y0 + Hy;
-	if (x_end >= W)
-		x_end = W - 1;
-	if (y_end >= H)
-		y_end = H - 1;
-	a2 = Wx*Wx + Hy*Hy;  //计算核半径平方a^2
-	f = 0.0;
-
-	for (y = y_begin; y <= y_end; y++)
-	for (x = x_begin; x <= x_end; x++)
-	{
-		r = image[(y*W + x) * 3] >> R_SHIFT;  //计算直方图
-		g = image[(y*W + x) * 3 + 1] >> G_SHIFT;
-		b = image[(y*W + x) * 3 + 2] >> B_SHIFT;
-
-		index = r*G_BIN*B_BIN + g*B_BIN + b;
-		r2 = (float)(((y - y0)*(y - y0) + (x - x0)*(x - x0))*1.0 / a2);
-		k = 1 - r2;  //核函数k(r)=1-r^2,|r|<1；其他值k(r)=0
-		f = f + k;
-		ColorHist[index] = ColorHist[index] + k;  //计算核密度加权彩色直方图
-	}
-
-	for (i = 0; i < bins; i++)   //归一化直方图
-		ColorHist[i] = ColorHist[i] / f;
-
-	return;
-}
 
 
-/*
-计算巴式系数
-输入参数：
-float *p,*q   两个彩色直方图密度估计
-int bins     直方图条数
-返回值：
-Bhattacharyya系数
-*/
-float CalcuBhattacharyya(float *p, float *q, int bins)
-{
-	int i;
-	float rho;
 
-	rho = 0.0;
-	for (i = 0; i < bins; i++)
-		rho = (float)(rho + sqrt(p[i] * q[i]));
 
-	return (rho);
-}
 
 //
 #define SIGMA2 0.02
